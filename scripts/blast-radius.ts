@@ -52,6 +52,57 @@ const SEV_COLOUR: Record<Severity, (s: string) => string> = {
   low: grey,
 };
 
+/**
+ * The banner: concentric arcs sweeping out from a single point.
+ *
+ * The same mark as the site, and the same idea — the product's name drawn
+ * literally. Generated rather than pasted as ASCII art so the arcs are actually
+ * circular: for each row, solve for the x that lies on the circle, and double it
+ * because terminal cells are about twice as tall as they are wide. Hand-drawn
+ * arcs at this size always come out as lopsided ellipses.
+ *
+ * Rings fade outward through the block-shading characters, which are in every
+ * monospace font that matters, so this does not turn into tofu on a projector.
+ */
+function banner(): string {
+  const H = 7;
+  const cy = (H - 1) / 2;
+  const width = 42;
+  const rings: { r: number; ch: string; paint: (s: string) => string }[] = [
+    { r: 3, ch: "█", paint: c("38;5;209") },
+    { r: 6, ch: "▓", paint: c("38;5;173") },
+    { r: 9, ch: "▒", paint: c("38;5;67") },
+    { r: 12, ch: "░", paint: c("38;5;60") },
+    { r: 15, ch: "·", paint: grey },
+  ];
+
+  const grid: string[][] = Array.from({ length: H }, () => Array(width).fill(" "));
+
+  for (const { r, ch, paint } of rings) {
+    for (let y = 0; y < H; y += 1) {
+      const dy = y - cy;
+      if (Math.abs(dy) >= r) continue;
+      const x = Math.round(Math.sqrt(r * r - dy * dy) * 2);
+      if (x >= 0 && x < width) grid[y][x] = COLOUR ? paint(ch) : ch;
+    }
+  }
+  grid[Math.round(cy)][0] = COLOUR ? c("38;5;209")("◉") : "◉";
+
+  // The wordmark sits in the middle rows, clear of the densest arcs.
+  const rows = grid.map((r) => r.join("").replace(/\s+$/, ""));
+  const pad = (s: string, n: number) => s + " ".repeat(Math.max(0, n - visibleLength(s)));
+
+  rows[cy - 1] = `${pad(rows[cy - 1] ?? "", 44)}${bold("BLAST RADIUS")}`;
+  rows[cy] = `${pad(rows[cy] ?? "", 44)}${dim("what your MCP servers can do together")}`;
+
+  return rows.map((r) => `  ${r}`).join("\n");
+}
+
+/** Length ignoring ANSI escapes, so padding lines up when colour is on. */
+function visibleLength(s: string): number {
+  return s.replace(/\[[0-9;]*m/g, "").length;
+}
+
 /** Where the common clients keep their configs. */
 function defaultConfigPaths(): string[] {
   const home = homedir();
@@ -152,7 +203,9 @@ function report(
   const line = (s = "") => console.log(s);
 
   line();
-  line(bold(blue("  BLAST RADIUS")) + dim(`  ${target}`));
+  line(banner());
+  line();
+  line(dim(`  ${target}`));
   line(dim("  " + "─".repeat(72)));
 
   // --- Servers -------------------------------------------------------------
