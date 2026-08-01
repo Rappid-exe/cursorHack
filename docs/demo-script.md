@@ -3,9 +3,13 @@
 Code freeze 15:45. Top 5 present live, 3 minutes each.
 
 **Setup before you start:** dev server on `http://localhost:3001`, page loaded at
-the very top so the hero fills the screen, scan **not** yet run. The scan takes
-~15–17 seconds, which is dead air you have to fill — the beats below are written
-to fill it.
+the very top so the hero fills the screen, scan **not** yet run.
+
+**The scan takes 14–22 seconds** — measured across runs, and the spread is real,
+so plan for the long end. That is dead air you have to fill, and the 0:25 beat
+below is written to fill roughly twenty seconds of it. If it comes back early,
+stop talking and move on; if it runs long, the architecture explanation extends
+naturally.
 
 **Read the numbers off the screen, don't memorise them.** Classification is a
 live model call, so totals move a little between runs: expect ~9–10 paths, 2–4
