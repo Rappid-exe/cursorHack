@@ -47,3 +47,11 @@ next-env.d.ts
 /public/hero.png
 /public/hero.webp
 /public/hero.avif
+
+# Source screenshots the hero art was cropped from. Third-party branding,
+# so they stay local like the crop itself.
+/public/*.jpg
+/public/*.jpeg
+/public/*.png
+/public/*.webp
+/public/*.avif
