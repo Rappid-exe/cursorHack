@@ -242,6 +242,31 @@ every committed technique is checked to be cited by a rule — `verify-engine.ts
 enforces both directions, so a rule can never quote a technique we did not pull,
 and the dataset can never accumulate records nothing uses.
 
+## The product is the CLI. The page is how you look at it.
+
+A website you paste your config into is a demo surface. The check belongs where
+the decision actually gets made — on a machine before someone adds a server, and
+in CI on the config file afterwards.
+
+```bash
+npx tsx scripts/blast-radius.ts
+```
+
+Auto-detects the usual client config locations (Cursor, Claude Desktop,
+Windsurf, `.mcp.json`), prints paths, injections, supply chain and remediation,
+and **exits 1 on a critical finding** so it fails a build. `--json` for
+machine-readable output.
+
+```bash
+npx tsx scripts/blast-radius.ts examples/mcp.json --tools examples/tools.json
+```
+
+Without `--tools` it still does everything that does not need tool definitions:
+supply-chain posture, credential exposure, registry provenance, pinning. It
+never launches a server to enumerate tools — starting eleven unknown binaries to
+find out whether they are safe is the problem, not the fix. Definitions come
+from a client session.
+
 ## Running it
 
 ```bash
@@ -252,10 +277,16 @@ npm install
 npm run dev
 ```
 
-Verify the engine (52 checks against the real datasets):
+Verify the engine (59 checks against the real datasets):
 
 ```bash
 npx tsx scripts/verify-engine.ts
+```
+
+Prove the demo survives a dead API key:
+
+```bash
+npx tsx scripts/verify-fallback.ts
 ```
 
 Reproduce the corpus figures:

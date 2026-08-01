@@ -154,10 +154,23 @@ genuinely is that bad. We don't de-escalate — a rule's base severity is a floo
 The gradation you want is the solo/composed split and the remediation panel, not
 the colour.
 
-**"What's the product?"**
-Pre-install review, and CI on the config file. The composition check is the thing
-nobody else can run, and it gets monotonically worse every time someone on the
-team adds a server.
+**"What's the product?"** ← *have the terminal ready, this is a 15-second answer*
+The CLI. The page is how you look at the output.
+
+```bash
+npx tsx scripts/blast-radius.ts
+```
+
+It auto-detects your Cursor and Claude Desktop configs, and exits 1 on a
+critical finding — so it's a CI check on the config file, and a pre-install
+check on a laptop. The composition analysis is the thing nobody else can run,
+and it gets monotonically worse every time someone on the team adds a server.
+
+**"What if the API is down / your key dies during the demo?"**
+It already did, this morning. The scan falls back to a recorded classification
+of the sample config and the UI says so on screen — the engine is deterministic
+and offline, so paths, severities and remediation are still computed live.
+`npx tsx scripts/verify-fallback.ts` forces a rejected key and proves it.
 
 **"Is the sample config real?"**
 Synthetic, and labelled in the fixture. Real package names and launch commands —
