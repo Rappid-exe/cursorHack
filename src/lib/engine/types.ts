@@ -162,6 +162,20 @@ export interface ServerReport {
   packageId: string | null;
 }
 
+/** See src/lib/engine/remediate.ts. Optional so `scan` can skip it when it
+ *  is being called recursively to evaluate a hypothetical surface. */
+export interface RemediationSummary {
+  perServer: {
+    serverKey: string;
+    pathsClosed: number;
+    criticalClosed: number;
+    pathsRemaining: number;
+  }[];
+  minimalCut: string[] | null;
+  noSingleFix: boolean;
+  byCapabilityClass: { role: "ingress" | "egress" | "execution"; closes: number }[];
+}
+
 export interface ScanResult {
   servers: ServerReport[];
   tools: ClassifiedTool[];
@@ -169,6 +183,7 @@ export interface ScanResult {
   paths: AttackPath[];
   injections: InjectionSpan[];
   supply: SupplyFinding[];
+  remediation?: RemediationSummary;
   /** Counts the demo and the brief both read from. */
   summary: {
     serverCount: number;

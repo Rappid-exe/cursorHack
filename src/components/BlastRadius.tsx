@@ -125,7 +125,7 @@ export function SurfaceMap({ result }: { result: ScanResult }) {
                         <td
                           key={id}
                           className={`px-1 py-2 text-center ${gi > 0 && ii === 0 ? "border-l border-border-strong" : ""} ${
-                            hovered === id ? "bg-surface-raised" : ""
+                            hovered === id ? "bg-surface-sunk" : ""
                           }`}
                         >
                           {has ? (

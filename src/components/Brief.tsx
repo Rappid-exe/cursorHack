@@ -57,7 +57,7 @@ export function Brief() {
         </p>
         <Link
           href="/"
-          className="mt-4 inline-block rounded bg-accent px-3 py-1.5 text-[13px] font-medium text-background transition-colors hover:bg-accent-hover"
+          className="mt-4 inline-block rounded bg-accent px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-accent-hover"
         >
           Back to the scanner
         </Link>

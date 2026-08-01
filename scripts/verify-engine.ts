@@ -20,6 +20,7 @@ import { PATH_RULES, severityFor, comparePaths } from "../src/lib/engine/paths";
 import { allTechniqueIds, technique, kevEntry } from "../src/lib/engine/data";
 import { parseConfig, packageOf, invocationOf } from "../src/lib/engine/config";
 import { scan } from "../src/lib/engine/scan";
+import { remediate } from "../src/lib/engine/remediate";
 import { assessServer } from "../src/lib/engine/supply";
 import { DEMO_CONFIG } from "../src/lib/demo/fixture";
 import type { ClassifiedTool, Severity } from "../src/lib/engine/types";
@@ -271,6 +272,85 @@ const mixedScan = scan(
 const mixed = mixedScan.paths.find((p) => p.ruleId === "file-exfil");
 check("a solo-capable server is preferred as the route", mixed?.serversInvolved.length === 1);
 check("and the path is not marked as composed", mixed?.requiresComposition === false);
+
+// ---------------------------------------------------------------------------
+section("Remediation");
+
+// Two servers, each supplying a leg nothing else covers: removing either must
+// close the path.
+const cutScan = scan(
+  [
+    { key: "reader", command: "node", args: ["a.js"] },
+    { key: "sender", command: "node", args: ["b.js"] },
+  ],
+  [
+    tool("reader", "fetch", ["browse.untrusted"]),
+    tool("reader", "read", ["fs.read"]),
+    tool("sender", "post", ["net.outbound"]),
+  ],
+);
+const cutFix = remediate(
+  [
+    { key: "reader", command: "node", args: ["a.js"] },
+    { key: "sender", command: "node", args: ["b.js"] },
+  ],
+  [
+    tool("reader", "fetch", ["browse.untrusted"]),
+    tool("reader", "read", ["fs.read"]),
+    tool("sender", "post", ["net.outbound"]),
+  ],
+  cutScan.paths,
+);
+
+check(
+  "removing a server that uniquely supplies a leg closes paths",
+  cutFix.perServer.every((s) => s.pathsClosed > 0),
+  cutFix.perServer.map((s) => `${s.serverKey}:${s.pathsClosed}`).join(" "),
+);
+check("a fixable surface is not reported as noSingleFix", cutFix.noSingleFix === false);
+check(
+  "the minimal cut is a single server when one suffices",
+  cutFix.minimalCut?.length === 1,
+  JSON.stringify(cutFix.minimalCut),
+);
+
+// Redundant egress: two servers can each ship the data, so removing either one
+// must close nothing. This is the case the remediation panel exists to surface,
+// and the one a naive "count the servers on the path" implementation gets wrong.
+const redundantServers = [
+  { key: "web", command: "node", args: ["a.js"] },
+  { key: "files", command: "node", args: ["b.js"] },
+  { key: "out1", command: "node", args: ["c.js"] },
+  { key: "out2", command: "node", args: ["d.js"] },
+];
+const redundantTools = [
+  tool("web", "browse", ["browse.untrusted"]),
+  tool("files", "read", ["fs.read"]),
+  tool("out1", "post", ["net.outbound"]),
+  tool("out2", "send", ["msg.send"]),
+];
+const redundantScan = scan(redundantServers, redundantTools);
+const redundantFix = remediate(redundantServers, redundantTools, redundantScan.paths);
+const egressImpact = redundantFix.perServer.filter((s) => s.serverKey.startsWith("out"));
+
+check(
+  "removing one of two redundant egress servers closes nothing",
+  egressImpact.every((s) => s.pathsClosed === 0),
+  egressImpact.map((s) => `${s.serverKey}:${s.pathsClosed}`).join(" "),
+);
+check(
+  "but removing the only file reader does close a path",
+  (redundantFix.perServer.find((s) => s.serverKey === "files")?.pathsClosed ?? 0) > 0,
+);
+check(
+  "stripping a whole capability role closes at least as much as any one server",
+  Math.max(...redundantFix.byCapabilityClass.map((c) => c.closes)) >=
+    Math.max(...redundantFix.perServer.map((s) => s.pathsClosed)),
+);
+check(
+  "per-server impact never exceeds the total path count",
+  redundantFix.perServer.every((s) => s.pathsClosed <= redundantScan.paths.length),
+);
 
 // ---------------------------------------------------------------------------
 section("Config parsing");

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { classifyTools, ClassificationError } from "@/lib/classify";
 import { parseConfig, ConfigError } from "@/lib/engine/config";
 import { scan } from "@/lib/engine/scan";
+import { remediate } from "@/lib/engine/remediate";
 import { DEMO_TOOLS } from "@/lib/demo/fixture";
 import type { ScanResult, ToolSpec } from "@/lib/engine/types";
 
@@ -93,6 +94,9 @@ export async function POST(request: Request) {
   try {
     const classification = await classifyTools(tools);
     const result = scan(servers, classification.tools, classification.injections);
+    // Computed here rather than inside scan(), because remediation works by
+    // re-running scan() over reduced surfaces — doing it inline would recurse.
+    result.remediation = remediate(servers, classification.tools, result.paths);
 
     const payload: ScanResponse = {
       result,

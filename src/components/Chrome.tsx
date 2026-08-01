@@ -3,38 +3,24 @@ import { PROVENANCE } from "@/lib/engine/provenance";
 import { SEVERITY_STYLE } from "@/lib/present";
 import type { Severity } from "@/lib/engine/types";
 
+/**
+ * Header for the interior routes.
+ *
+ * The landing page carries its own nav inside the hero, over the illustration.
+ * This is the plain version for pages that have no hero — currently the brief.
+ */
 export function SiteHeader() {
   return (
-    <header className="border-b border-border">
+    <header className="border-b border-border bg-surface">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2.5">
-          <RadiusMark />
-          <span className="text-[15px] font-semibold tracking-tight">Blast Radius</span>
+        <Link href="/" className="wordmark text-[19px] text-foreground">
+          Blast Radius
         </Link>
         <span className="notation text-[11px] uppercase tracking-[0.14em] text-faint">
           MCP attack surface analysis
         </span>
       </div>
     </header>
-  );
-}
-
-/** Concentric arcs from a single point — the product's one piece of iconography. */
-function RadiusMark({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" className={`h-5 w-5 ${className}`} aria-hidden="true">
-      <circle cx="5" cy="15" r="2" fill="var(--accent)" />
-      {[5.5, 10, 14.5].map((r, i) => (
-        <path
-          key={r}
-          d={`M ${5 + r} 15 A ${r} ${r} 0 0 0 5 ${15 - r}`}
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="1.1"
-          opacity={0.75 - i * 0.2}
-        />
-      ))}
-    </svg>
   );
 }
 
@@ -59,9 +45,9 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
 /**
  * Where every number on the page came from.
  *
- * Present on both the dashboard and the brief because the product's entire
- * claim is that nothing here is invented — a reader who wants to check a
- * severity band should be able to find the table it came from.
+ * The product's entire claim is that nothing here is invented, so a reader who
+ * wants to check a severity band should be able to find the table it came from
+ * without leaving the page.
  */
 export function ProvenanceFooter() {
   const { registry, threat, supply } = PROVENANCE;
@@ -93,33 +79,44 @@ export function ProvenanceFooter() {
   ];
 
   return (
-    <footer className="mt-16 border-t border-border">
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <p className="notation mb-4 text-[11px] uppercase tracking-[0.14em] text-faint">
+    <footer id="provenance" className="border-t border-border bg-surface">
+      <div className="mx-auto max-w-6xl px-6 py-14">
+        <p className="notation mb-6 text-[11px] uppercase tracking-[0.16em] text-accent">
           Every claim on this page traces to one of these
         </p>
-        <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
           {rows.map((r) => (
-            <div key={r.name}>
+            <div key={r.name} className="border-t border-border-strong pt-3">
               <a
                 href={r.href}
                 target="_blank"
                 rel="noreferrer"
-                className="text-[13px] text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-accent"
+                className="text-[14px] font-medium text-foreground underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-accent"
               >
                 {r.name}
               </a>
-              <p className="notation mt-0.5 text-[11px] text-faint">{r.detail}</p>
+              <p className="notation mt-1 text-[11px] text-faint">{r.detail}</p>
             </div>
           ))}
         </div>
-        <p className="mt-6 max-w-3xl text-[12px] leading-relaxed text-faint">
-          Datasets are pulled at build time and committed, so the scanner makes no outbound
-          request while it runs. Severity is computed by rules in{" "}
-          <span className="notation">src/lib/engine</span>, not by a model. Blast Radius is a
-          demonstration prototype, not a security product, and the sample configuration it ships
-          with is synthetic.
-        </p>
+
+        <div className="mt-10 flex flex-col gap-4 border-t border-border pt-6 sm:flex-row sm:items-start sm:justify-between">
+          <p className="max-w-3xl text-[12.5px] leading-relaxed text-muted">
+            Datasets are pulled at build time and committed, so the scanner makes no outbound
+            request while it runs. Severity is computed by rules in{" "}
+            <span className="notation">src/lib/engine</span>, not by a model. Blast Radius is a
+            demonstration prototype, not a security product, and the sample configuration it ships
+            with is synthetic.
+          </p>
+          <a
+            href="https://github.com/Rappid-exe/cursorHack"
+            target="_blank"
+            rel="noreferrer"
+            className="notation shrink-0 text-[12px] text-faint underline decoration-border-strong underline-offset-4 transition-colors hover:text-foreground"
+          >
+            github.com/Rappid-exe/cursorHack
+          </a>
+        </div>
       </div>
     </footer>
   );

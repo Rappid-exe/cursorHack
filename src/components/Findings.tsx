@@ -47,7 +47,7 @@ function PathCard({ path, index }: { path: AttackPath; index: number }) {
         <ol className="mt-4 flex flex-col gap-2 lg:flex-row lg:items-stretch">
           {path.legs.map((leg, i) => (
             <li key={i} className="flex flex-1 items-stretch gap-2">
-              <div className="flex-1 rounded border border-border bg-surface-raised p-3">
+              <div className="flex-1 rounded border border-border bg-surface-sunk p-3">
                 <div className="notation text-[10px] uppercase tracking-[0.1em] text-faint">
                   Step {i + 1}
                 </div>
@@ -116,7 +116,7 @@ function PathCard({ path, index }: { path: AttackPath; index: number }) {
         </div>
 
         {open && (
-          <div className="mt-3 rounded border border-border bg-surface-raised p-3">
+          <div className="mt-3 rounded border border-border bg-surface-sunk p-3">
             <p className="text-[12px] leading-relaxed text-muted">{path.severityReason}.</p>
             <p className="mt-2 text-[12px] leading-relaxed text-muted">
               Every step is satisfied by a capability the classifier found on a tool in this
@@ -198,7 +198,7 @@ function InjectionCard({ span, description }: { span: InjectionSpan; description
           so instructions placed here execute by default.
         </p>
 
-        <div className="notation mt-3 overflow-x-auto rounded border border-border bg-surface-raised p-3 text-[11.5px] leading-relaxed whitespace-pre-wrap">
+        <div className="notation mt-3 overflow-x-auto rounded border border-border bg-surface-sunk p-3 text-[11.5px] leading-relaxed whitespace-pre-wrap">
           <span className="text-faint">{clip(before, "start")}</span>
           <mark className="bg-critical-surface px-0.5 text-critical outline outline-critical-border">
             {hit}
@@ -264,7 +264,7 @@ export function SupplyChain({ findings }: { findings: SupplyFinding[] }) {
       <div className="overflow-hidden rounded-lg border border-border bg-surface">
         {[...byServer.entries()].map(([server, list], si) => (
           <div key={server} className={si > 0 ? "border-t border-border" : ""}>
-            <div className="border-b border-border bg-surface-raised px-4 py-2">
+            <div className="border-b border-border bg-surface-sunk px-4 py-2">
               <span className="notation text-[12px] text-foreground">{server}</span>
             </div>
             {list.map((f, i) => (

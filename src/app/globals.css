@@ -1,66 +1,82 @@
 @import "tailwindcss";
 
 /*
- * Blast Radius runs dark-only and says so via color-scheme.
+ * Blast Radius runs light-only and says so via color-scheme.
  *
- * This is a security console, so it reads as an instrument: dense, monospaced
- * where the content is data, and quiet until something is actually wrong. The
- * neutrals are cool and near-black rather than the warm charcoal that has
- * become the default look of generated dashboards.
+ * The page is warm off-white with a deep royal-blue hero band. That inversion
+ * is deliberate: security tooling defaults to dark consoles, which is why every
+ * one of them looks the same and why none of them read as a *product*. A light
+ * page with one saturated blue field and one vermillion accent reads as
+ * something that was designed rather than themed.
  *
  * Pinning the scheme means the demo renders identically on whatever projector
  * it lands on rather than inheriting an OS preference mid-presentation.
  */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  --background: #080a0e;
-  --surface: #0e1219;
-  --surface-raised: #141922;
-  --foreground: #e8ecf2;
-  --muted: #99a3b3;
+  /* Warm neutrals. Cream rather than grey — the blue is cold enough on its own,
+     and a cold page under it made the whole thing feel like a spreadsheet. */
+  --background: #faf8f4;
+  --surface: #ffffff;
+  --surface-sunk: #f4f1ea;
+  --foreground: #14171f;
+  --muted: #565f6e;
   /* Carries small uppercase labels, so it must clear 4.5:1 on --surface. */
-  --faint: #7b8698;
-  --border: #1c2230;
-  --border-strong: #2a3242;
+  --faint: #6d7686;
+  --border: #e6e1d7;
+  --border-strong: #cfc8ba;
 
-  /* The single structural accent. Used for the product's own voice — headings,
-     the scan action, the graph's spine — so the page has one colour running
-     through it that is not a severity. */
-  --accent: #4dd0c7;
-  --accent-hover: #6bdbd3;
-  --accent-soft: #10221f;
-  --accent-border: #1d3d39;
+  /* The hero field. Deep, saturated, slightly violet — the colour of the sky
+     about twenty minutes after sunset, which is what the illustration is. */
+  --hero: #10309e;
+  --hero-deep: #0a1f72;
+  --hero-lift: #2b52d4;
+  --on-hero: #f2f5ff;
+  --on-hero-muted: #b9c6f0;
 
-  /* Severity. These are the only saturated colours on the page, so that red
-     still means something when it appears. Desaturated enough to sit on a dark
-     surface for a whole demo without fatiguing. */
-  --critical: #ff6b7a;
-  --critical-surface: #1c0f13;
-  --critical-border: #46212a;
+  /* The single accent, on both fields. Vermillion, not red — it has to sit next
+     to the severity reds without competing with them, so it stays warmer and
+     more orange than any severity colour on the page. */
+  --accent: #e8452a;
+  --accent-hover: #cf3a20;
+  --accent-soft: #fdf0ec;
+  --accent-border: #f5cabd;
 
-  --high: #ffa657;
-  --high-surface: #1c140b;
-  --high-border: #452e19;
+  /* Severity, tuned for ink on cream rather than glow on black. Deep and
+     desaturated: these are the only saturated marks in the content area, so
+     red still means something when it appears. */
+  --critical: #b3261e;
+  --critical-surface: #fdf1ef;
+  --critical-border: #f2ccc6;
 
-  --medium: #e3c766;
-  --medium-surface: #191509;
-  --medium-border: #3d3418;
+  --high: #a04d09;
+  --high-surface: #fdf4ea;
+  --high-border: #f0d9bd;
 
-  --low: #8b95a5;
-  --low-surface: #12161d;
-  --low-border: #262d3a;
+  --medium: #7c6212;
+  --medium-surface: #fbf7e8;
+  --medium-border: #e8dcb4;
+
+  --low: #5b6472;
+  --low-surface: #f4f4f5;
+  --low-border: #dfdfe2;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
-  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunk: var(--surface-sunk);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
+  --color-hero: var(--hero);
+  --color-hero-deep: var(--hero-deep);
+  --color-hero-lift: var(--hero-lift);
+  --color-on-hero: var(--on-hero);
+  --color-on-hero-muted: var(--on-hero-muted);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
@@ -78,6 +94,7 @@
   --color-low-surface: var(--low-surface);
   --color-low-border: var(--low-border);
 
+  --font-display: var(--font-display);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 }
@@ -100,6 +117,37 @@ body {
   font-variant-ligatures: none;
 }
 
+/*
+ * The wordmark, and only the wordmark. A serif italic against an otherwise
+ * geometric page is the whole of the brand — used anywhere else it would stop
+ * being a signature and start being decoration.
+ */
+.wordmark {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * Film grain.
+ *
+ * A flat saturated blue field of this size bands badly on a projector — you get
+ * visible stepping across the gradient. Grain breaks the steps up and is the
+ * single biggest reason the hero reads as printed rather than rendered. The
+ * texture is an inline SVG turbulence, so there is no asset to load and nothing
+ * to go missing offline.
+ */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.42;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
 /* Findings enter worst-first, staggered, so the eye lands on the critical row
    rather than somewhere arbitrary in a block of cards. */
 @keyframes br-rise {
@@ -114,24 +162,32 @@ body {
 }
 
 .reveal {
-  animation: br-rise 420ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  animation: br-rise 460ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
 
-/* The scan animation traces each attack path as it is discovered. */
-@keyframes br-trace {
-  from {
-    stroke-dashoffset: var(--dash, 400);
+/*
+ * The hero rings. Concentric arcs sweeping out from the point the illustration
+ * is lit from — the product's name, drawn. They breathe rather than pulse:
+ * anything faster reads as a loading state on a page that is not loading.
+ */
+@keyframes br-breathe {
+  0%,
+  100% {
+    opacity: var(--ring-min, 0.1);
+    transform: scale(1);
   }
-  to {
-    stroke-dashoffset: 0;
+  50% {
+    opacity: var(--ring-max, 0.28);
+    transform: scale(1.012);
   }
 }
 
-.trace {
-  stroke-dasharray: var(--dash, 400);
-  animation: br-trace 1.1s cubic-bezier(0.4, 0, 0.2, 1) both;
+.ring {
+  transform-origin: 18% 96%;
+  animation: br-breathe 7s ease-in-out infinite;
 }
 
+/* The active stage of the scan animation. */
 @keyframes br-pulse {
   0%,
   100% {
@@ -146,9 +202,23 @@ body {
   animation: br-pulse 1.6s ease-in-out infinite;
 }
 
+@keyframes br-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-2.5%);
+  }
+}
+
+.drift {
+  animation: br-drift 34s ease-in-out infinite alternate;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reveal,
-  .trace,
+  .ring,
+  .drift,
   .pulse {
     animation: none;
   }
@@ -156,8 +226,7 @@ body {
 
 /*
  * Print rules for the security brief. It has to survive being pasted into a
- * ticket or printed for a review meeting, so it inverts to ink-on-paper rather
- * than burning a page of toner on the dark theme.
+ * ticket or printed for a review meeting.
  */
 @media print {
   @page {

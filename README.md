@@ -115,9 +115,38 @@ the interesting half:
 The engine reports the **shortest** route rather than every possible one. With
 eleven servers most legs have six or seven providers, and listing them all is
 technically complete and practically useless — it buries the shape of the attack
-under a wall of chips. Breadth is reported separately as a count, because it is
-the answer to a different and important question: *if I remove one server, does
-this close?* Usually it does not.
+under a wall of chips. Breadth is reported separately as a count.
+
+## So which server do you uninstall?
+
+This is the question a scanner has to answer to be worth running, and for a
+composed surface the honest answer is uncomfortable. `remediate.ts` re-runs the
+whole engine once per server, with that server's tools removed, and counts what
+actually closes.
+
+On the sample configuration:
+
+| | |
+|---|---|
+| Servers whose removal closes **zero** paths | **7 of 11** |
+| Best single removal | closes **1 of 10** paths |
+| Smallest subset (≤3) that closes everything | **none exists** |
+| Paths closed by removing all ingress capability | **10 of 10** |
+
+The seven that change nothing include `shell` and `puppeteer` — the two entries
+anyone would point at first. They are not load-bearing, because six other
+servers provide the same leg. **The scariest-sounding server on the list is
+usually irrelevant to the finding**, which is precisely why per-server review
+produces the wrong remediation as well as missing the risk.
+
+So the remedy is not uninstalling, it is **separation**: run ingress-capable
+servers in a session that holds nothing egress-capable. The tool says which
+split closes how many paths, and where no split helps it says that instead of
+manufacturing an action.
+
+Nothing in that table is heuristic. It is the same set arithmetic as the scan,
+evaluated over a reduced tool surface — a path closes if and only if some leg
+has no provider left.
 
 ## Two artifacts, one pipeline
 

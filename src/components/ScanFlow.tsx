@@ -6,6 +6,7 @@ import type { ScanResult } from "@/lib/engine/types";
 import { DEMO_CONFIG } from "@/lib/demo/fixture";
 import { SummaryBar, SurfaceMap } from "./BlastRadius";
 import { AttackPaths, Injections, SupplyChain, ClassificationNote } from "./Findings";
+import { Remediation } from "./Remediation";
 import { SectionLabel } from "./Chrome";
 
 interface Classification {
@@ -179,7 +180,7 @@ export function ScanFlow() {
             type="button"
             onClick={runScan}
             disabled={phase === "scanning"}
-            className="rounded bg-accent px-4 py-2 text-[13px] font-medium text-background transition-colors hover:bg-accent-hover disabled:opacity-50"
+            className="rounded bg-accent px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
           >
             {phase === "scanning" ? "Scanning…" : "Scan this configuration"}
           </button>
@@ -228,6 +229,7 @@ export function ScanFlow() {
           <SurfaceMap result={result} />
           <Injections result={result} />
           <AttackPaths paths={result.paths} />
+          <Remediation result={result} />
           <SupplyChain findings={result.supply} />
           <ClassificationNote result={result} classification={classification} />
         </div>
