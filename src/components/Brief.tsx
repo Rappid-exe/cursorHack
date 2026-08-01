@@ -68,6 +68,9 @@ export function Brief() {
   const { summary } = result;
   const composed = result.paths.filter((p) => p.requiresComposition);
   const solo = result.paths.filter((p) => !p.requiresComposition);
+  const rem = result.remediation;
+  const inert = rem?.perServer.filter((s) => s.pathsClosed === 0) ?? [];
+  const topRole = rem?.byCapabilityClass[0];
   const criticalSupply = result.supply.filter(
     (s) => s.severity === "critical" || s.severity === "high",
   );
@@ -192,20 +195,55 @@ export function Brief() {
         </section>
       )}
 
-      {/* --- Recommended action --------------------------------------------- */}
+      {/* --- Recommended action ---------------------------------------------
+          Driven by the same re-run-the-engine numbers as the dashboard panel.
+          A brief that recommended something the dashboard contradicted would
+          be worse than no brief. */}
       <section>
         <h2 className="notation text-[11px] uppercase tracking-[0.14em] text-faint">
           What closes these
         </h2>
+
+        {rem && (
+          <p className="mt-2 text-[12.5px] leading-relaxed">
+            <strong>
+              {rem.noSingleFix
+                ? "Removing any single server closes nothing."
+                : `The best single removal closes ${rem.perServer[0].pathsClosed} of ${result.paths.length} paths.`}
+            </strong>{" "}
+            {inert.length > 0 && (
+              <>
+                {inert.length} of {rem.perServer.length} servers close no paths at all when
+                removed — including{" "}
+                <span className="notation">
+                  {inert.slice(0, 3).map((s) => s.serverKey).join(", ")}
+                </span>
+                . Their legs are covered by something else already installed, which is why
+                per-server review produces the wrong remediation as well as missing the risk.
+              </>
+            )}
+          </p>
+        )}
+
         <ul className="mt-2 flex list-disc flex-col gap-1.5 pl-4 text-[12.5px] leading-relaxed">
-          {result.injections.length > 0 && (
+          {rem?.minimalCut && rem.minimalCut.length > 0 && (
             <li>
-              Remove{" "}
-              <span className="notation">
-                {[...new Set(result.injections.map((s) => s.serverKey))].join(", ")}
-              </span>
-              . Its tool descriptions instruct the model to read credentials and conceal having
-              done so. Nothing about the rest of the configuration makes that safe.
+              Uninstalling <span className="notation">{rem.minimalCut.join(", ")}</span> together
+              closes every path. No smaller set does.
+            </li>
+          )}
+          {rem && !rem.minimalCut && (
+            <li>
+              No subset of up to three servers closes every path. This surface cannot be fixed by
+              uninstalling — it has to be separated.
+            </li>
+          )}
+          {topRole && topRole.closes > 0 && (
+            <li>
+              <strong>Separate by role.</strong> A session holding no{" "}
+              <span className="notation">{topRole.role}</span>-capable tool would close{" "}
+              {plural(topRole.closes, "path")}. For a composed surface this is the remedy, not
+              uninstalling.
             </li>
           )}
           {solo.length > 0 && (
@@ -213,15 +251,18 @@ export function Brief() {
               <span className="notation">
                 {[...new Set(solo.flatMap((p) => p.soloCapableServers.slice(0, 1)))].join(", ")}
               </span>{" "}
-              each complete an attack path without help. These are decisions you can make one
-              server at a time.
+              each complete a path without help — decisions you can make one server at a time.
             </li>
           )}
-          {composed.length > 0 && (
+          {result.injections.length > 0 && (
             <li>
-              The remaining {composed.length} paths need servers acting together, so they close by
-              separating the surface — running ingress-capable servers in a session that has no
-              egress-capable server, rather than by removing any one entry.
+              Read the quoted descriptions above for{" "}
+              <span className="notation">
+                {[...new Set(result.injections.map((s) => s.serverKey))].join(", ")}
+              </span>{" "}
+              yourself. Each addresses the model rather than the reader. That is the shape
+              poisoning takes and also how some legitimate servers are written; which is which is
+              a judgement this report does not make.
             </li>
           )}
           <li>

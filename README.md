@@ -43,11 +43,14 @@ flowchart LR
     C --> D["Composition rules<br/>deterministic"]
     A --> E["Supply chain<br/>npm · PyPI · OSV · KEV"]
     E --> D
-    D --> F["Attack paths<br/>+ minimal route"]
-    D --> G["One-page brief"]
+    D --> F["Attack paths<br/>+ shortest route"]
+    D --> R["Remediation<br/>re-run per server"]
+    F --> G["One-page brief"]
+    R --> G
 
-    style B fill:#10221f,stroke:#4dd0c7,color:#e8ecf2
-    style D fill:#1c0f13,stroke:#ff6b7a,color:#e8ecf2
+    style B fill:#eef4ff,stroke:#10309e,color:#14171f
+    style D fill:#fdf1ef,stroke:#b3261e,color:#14171f
+    style R fill:#fdf0ec,stroke:#e8452a,color:#14171f
 ```
 
 On the sample configuration — eleven servers a working developer would plausibly
@@ -153,9 +156,9 @@ has no provider left.
 | | Dashboard | Security brief |
 |---|---|---|
 | Route | `/` | `/brief` |
-| Reader | The person deciding what to uninstall | The person justifying that decision |
-| Register | Interactive surface map, per-path detail | One side of A4, prints to ink |
-| Shared | Identical findings — no divergent second source of truth | |
+| Reader | The person deciding what to change | The person justifying that decision |
+| Register | Interactive surface map, per-path detail, remediation impact | One side of A4, prints to ink |
+| Shared | Identical findings *and* identical remediation numbers — no divergent second source of truth | |
 
 ## Is this a real problem? We counted.
 
