@@ -4,6 +4,7 @@ import { parseConfig, ConfigError } from "@/lib/engine/config";
 import { scan } from "@/lib/engine/scan";
 import { remediate } from "@/lib/engine/remediate";
 import { DEMO_TOOLS } from "@/lib/demo/fixture";
+import { cachedClassification, isDemoSurface } from "@/lib/demo/cached";
 import type { ScanResult, ToolSpec } from "@/lib/engine/types";
 
 export const runtime = "nodejs";
@@ -18,6 +19,10 @@ export interface ScanResponse {
     unclassified: number;
     rejectedSpans: number;
     rejectedCapabilities: string[];
+    /** Whether the model actually ran, or a recorded result was substituted. */
+    source: "live" | "cached";
+    /** When the recorded result was captured. Set only when source is cached. */
+    capturedAt?: string;
   };
 }
 
@@ -92,7 +97,31 @@ export async function POST(request: Request) {
   }
 
   try {
-    const classification = await classifyTools(tools);
+    let classification: {
+      tools: Awaited<ReturnType<typeof classifyTools>>["tools"];
+      injections: Awaited<ReturnType<typeof classifyTools>>["injections"];
+      rejectedSpans: number;
+      rejectedCapabilities: string[];
+    };
+    let source: "live" | "cached" = "live";
+    let capturedAt: string | undefined;
+
+    try {
+      classification = await classifyTools(tools);
+    } catch (err) {
+      // A revoked key, a rate limit or a dead network says nothing about
+      // whether the engine works — it is deterministic and offline. For the
+      // committed sample we have a recorded classification, so fall back to it
+      // and tell the caller. Any other configuration re-throws, because there
+      // is no recorded answer and pretending otherwise would be a fabrication.
+      if (!(err instanceof ClassificationError) || !isDemoSurface(tools)) throw err;
+      const fallback = cachedClassification();
+      classification = { ...fallback, rejectedSpans: 0, rejectedCapabilities: [] };
+      source = "cached";
+      capturedAt = fallback.capturedAt;
+      console.warn(`scan: classification unavailable (${err.kind}) — using recorded sample`);
+    }
+
     const result = scan(servers, classification.tools, classification.injections);
     // Computed here rather than inside scan(), because remediation works by
     // re-running scan() over reduced surfaces — doing it inline would recurse.
@@ -105,6 +134,8 @@ export async function POST(request: Request) {
         unclassified: classification.tools.filter((t) => t.capabilities.length === 0).length,
         rejectedSpans: classification.rejectedSpans,
         rejectedCapabilities: classification.rejectedCapabilities,
+        source,
+        capturedAt,
       },
     };
     return NextResponse.json(payload);

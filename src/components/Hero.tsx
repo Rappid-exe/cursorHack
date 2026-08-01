@@ -330,27 +330,66 @@ export function Hero() {
   const heroImage = findHeroImage();
 
   return (
-    <section className="grain relative isolate flex min-h-[94vh] flex-col overflow-hidden bg-hero-deep">
+    <section
+      className={`relative isolate flex min-h-[94vh] flex-col overflow-hidden bg-hero-deep ${
+        // The drawn version needs the CSS grain overlay to stop the flat field
+        // banding. A real illustration already carries its own grain, and
+        // stacking a second pass over it just reads as muddy.
+        heroImage ? "" : "grain"
+      }`}
+    >
       {heroImage ? (
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url(${heroImage})` }}
-        />
+        <>
+          {/*
+            The artwork is a wide, short band — it is the illustration with the
+            source page's own branding cropped away, so it has no sky left to
+            spare. Rather than scaling it to cover (which crops the mountains or
+            stretches them), it sits at its natural aspect along the bottom and
+            the sky above is continued in CSS.
+            The gradient's final stop is the artwork's own sampled top-edge
+            colour, held from 45% down, so wherever the image starts the two
+            meet on the same value and there is no seam.
+          */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(180deg, #03165c 0%, #04217a 26%, #052d96 45%, #052d96 100%)",
+            }}
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 aspect-[2400/650] w-full bg-bottom bg-no-repeat"
+            style={{
+              backgroundImage: `url(${heroImage})`,
+              backgroundSize: "100% auto",
+              // Matching the colour gets the two surfaces to the same value, but
+              // JPEG noise and the CSS gradient's own dithering still leave a
+              // faint edge. Feathering the first 18% of the image dissolves it.
+              maskImage: "linear-gradient(180deg, transparent 0%, #000 18%)",
+              WebkitMaskImage: "linear-gradient(180deg, transparent 0%, #000 18%)",
+            }}
+          />
+        </>
       ) : (
         <HeroArt />
       )}
 
       {/*
         Scrim.
-        Type has to survive sitting over the brightest part of the sky. Dimming
-        the whole illustration to achieve that would throw away the dusk band,
-        so this darkens only the upper 62% — above where the band begins — and
-        fades out before reaching it.
+        Type has to survive sitting over the sky. The drawn version needs a
+        heavy one because its brightest band sits high; the photograph's upper
+        half is already deep blue, so it needs almost nothing and a heavy scrim
+        would only flatten the colour.
       */}
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 top-0 h-[70%] bg-gradient-to-b from-hero-deep/88 via-hero-deep/55 to-transparent"
+        className={`absolute inset-x-0 top-0 bg-gradient-to-b to-transparent ${
+          heroImage
+            ? "h-[55%] from-[#03165c]/55 via-[#03165c]/20"
+            : "h-[70%] from-hero-deep/88 via-hero-deep/55"
+        }`}
       />
 
       <div className="relative z-10 flex flex-1 flex-col">
@@ -358,12 +397,12 @@ export function Hero() {
 
         <div className="mx-auto w-full max-w-6xl px-6 pt-10 pb-24 sm:pt-14">
           <h1 className="max-w-3xl text-[36px] leading-[1.08] font-semibold tracking-[-0.025em] text-on-hero sm:text-[56px]">
-            A server that reads files is not a vulnerability.
+            Your MCP servers are safe alone and dangerous together.
           </h1>
-          <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-on-hero-muted sm:text-[19px]">
-            Neither is one that makes HTTP requests. Installed together, they are an
-            exfiltration primitive — and your agent sees one flat list of tools, not two
-            servers with two trust boundaries.
+          <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-on-hero-muted sm:text-[19px]">
+            One reads files. One makes HTTP requests. Neither is a vulnerability. Both installed
+            is an exfiltration path — and nothing audits for that, because it isn&rsquo;t a fact
+            about any one server.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-5">

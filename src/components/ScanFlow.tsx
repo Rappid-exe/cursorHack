@@ -14,6 +14,8 @@ interface Classification {
   unclassified: number;
   rejectedSpans: number;
   rejectedCapabilities: string[];
+  source: "live" | "cached";
+  capturedAt?: string;
 }
 
 type Phase = "idle" | "scanning" | "done" | "error";
@@ -224,6 +226,22 @@ export function ScanFlow() {
               </Link>
             </div>
             <SummaryBar result={result} />
+
+            {/* Never let a recorded run pass for a live one. */}
+            {classification.source === "cached" && (
+              <div className="mt-3 rounded-lg border border-medium-border bg-medium-surface p-4">
+                <p className="text-[13px] leading-relaxed text-foreground">
+                  <strong>Classification did not run — showing a recorded result.</strong> The
+                  model call failed, so this used the classification committed for the sample
+                  configuration
+                  {classification.capturedAt
+                    ? `, captured ${classification.capturedAt.slice(0, 10)}`
+                    : ""}
+                  . Everything below it — the attack paths, the severities, the remediation — was
+                  computed just now by the engine, which is deterministic and never calls out.
+                </p>
+              </div>
+            )}
           </section>
 
           <SurfaceMap result={result} />

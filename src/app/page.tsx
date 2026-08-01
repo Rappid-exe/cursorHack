@@ -28,7 +28,7 @@ interface Corpus {
 }
 
 export default function Home() {
-  const { registry, threat } = PROVENANCE;
+  const { threat } = PROVENANCE;
   const { census, sample } = corpus as Corpus;
 
   return (
@@ -38,35 +38,28 @@ export default function Home() {
       {/* --- The claim ------------------------------------------------------ */}
       <section id="how" className="border-b border-border bg-surface">
         <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
-          <p className="notation text-[11px] uppercase tracking-[0.16em] text-accent">
-            The architecture
-          </p>
-          <h2 className="mt-3 max-w-3xl text-[26px] leading-[1.2] font-semibold tracking-[-0.015em] sm:text-[34px]">
+          <h2 className="max-w-3xl text-[26px] leading-[1.2] font-semibold tracking-[-0.015em] sm:text-[34px]">
             The model reads English. It never decides what is dangerous.
           </h2>
-          <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-muted">
-            Ask any AI-security demo how you know the model did not invent a finding, and the
-            answer is usually a shrug. Here it cannot — it is never asked to produce one.
-          </p>
 
           <div className="mt-10 grid gap-8 md:grid-cols-3">
             {[
               {
                 n: "01",
                 t: "Classify",
-                d: "Reads each tool description and assigns capabilities from a closed list of fourteen. Genuinely a language problem: there is no schema, and every server author words it differently.",
+                d: "Reads each tool description and assigns capabilities from a closed list of fourteen.",
                 who: "model",
               },
               {
                 n: "02",
                 t: "Locate",
-                d: "Finds spans of description that instruct the model rather than describe the tool, and returns them verbatim. A quote that cannot be found in the source is discarded before you see it.",
+                d: "Quotes spans that instruct the model rather than describe the tool — verbatim, or discarded.",
                 who: "model",
               },
               {
                 n: "03",
                 t: "Compose",
-                d: "Joins capabilities into attack paths from a hand-written rule table, scored against CISA KEV, MITRE ATT&CK and OSV. Every severity is a pure function over committed data.",
+                d: "Joins capabilities into attack paths from a hand-written rule table, scored against CISA KEV, ATT&CK and OSV.",
                 who: "engine",
               },
             ].map((s) => (
@@ -91,8 +84,7 @@ export default function Home() {
 
           <p className="mt-10 max-w-2xl border-l-2 border-accent pl-4 text-[15px] leading-relaxed">
             If the classifier returned nonsense you would get{" "}
-            <strong>fewer findings, never invented ones</strong>. That is the property worth
-            having, and it is enforced rather than promised.
+            <strong>fewer findings, never invented ones</strong>.
           </p>
         </div>
       </section>
@@ -111,33 +103,31 @@ export default function Home() {
             Measured, not asserted
           </p>
           <h2 className="mt-3 max-w-3xl text-[26px] leading-[1.2] font-semibold tracking-[-0.015em] text-on-hero sm:text-[34px]">
-            Is MCP really an unguarded supply chain? We counted all{" "}
-            {census.servers.toLocaleString()}.
+            We ran this over all {census.servers.toLocaleString()} published MCP servers.
           </h2>
           <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-on-hero-muted">
-            Every server published to the official registry, across{" "}
-            {registry.counts.versions.toLocaleString()} versions, joined against npm, PyPI, OSV and
-            CISA KEV. This is a census, not a sample — the figures are exact.
+            The whole official registry, joined against npm, PyPI, OSV and CISA KEV. A census, not
+            a sample — these figures are exact.
           </p>
 
           <div className="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 v: `${census.percentSoloMaintainer}%`,
-                l: `of the ${census.maintainerDataAvailable.toLocaleString()} backing packages have a single maintainer`,
+                l: "of backing packages have a single maintainer",
                 hi: true,
               },
               {
                 v: census.publishedLast30Days.toLocaleString(),
-                l: `shipped a new version in the last 30 days; the median last shipped ${census.medianDaysSincePublish} days ago`,
+                l: "shipped a new version in the last 30 days",
               },
               {
                 v: `${census.percentWithoutRepository}%`,
-                l: `publish no source repository — ${census.withoutRepository.toLocaleString()} servers whose code cannot be read before it runs`,
+                l: "publish no source repository at all",
               },
               {
                 v: census.delivery.remote.toLocaleString(),
-                l: "are remote, so the operator sees every argument of every call",
+                l: "are remote — the operator sees every call",
               },
             ].map((s) => (
               <div key={s.l} className="border-t border-white/20 pt-4">
@@ -154,43 +144,28 @@ export default function Home() {
           </div>
 
           <p className="mt-10 max-w-3xl text-[14px] leading-relaxed text-on-hero-muted">
-            <span className="text-on-hero">Two results cut the other way, and are reported as found.</span>{" "}
-            Only {census.serversWithAdvisories} servers are backed by a package with a published
-            advisory.{" "}
+            <span className="text-on-hero">One result cuts the other way, and we report it as found.</span>{" "}
             {census.serversWithKevCve === 0 ? (
               <>
-                And <span className="text-on-hero">none</span> carry a CVE on CISA&rsquo;s
-                actively-exploited list — we checked all{" "}
-                {threat.counts.kevEntries.toLocaleString()} and found zero. MCP is not yet being
-                exploited through its dependencies. The exposure is structural, not historical,
-                and reporting a clean result as clean is the only thing that keeps the dirty ones
-                meaningful.
+                <span className="text-on-hero">None</span> of these servers carry a CVE on
+                CISA&rsquo;s actively-exploited list — we checked all{" "}
+                {threat.counts.kevEntries.toLocaleString()}. MCP is not being exploited through its
+                dependencies yet. The exposure is structural, not historical.
               </>
             ) : (
               <>{census.serversWithKevCve} carry an actively-exploited CVE.</>
             )}
-          </p>
-
-          {sample && (
-            <div className="mt-10 border-t border-white/20 pt-8">
-              <h3 className="text-[17px] font-semibold tracking-tight text-on-hero">
-                Capability sample · {sample.size} servers
-              </h3>
-              <p className="mt-2 max-w-3xl text-[14px] leading-relaxed text-on-hero-muted">
-                The registry publishes a description per server but not its tool list, and
-                enumerating tools for real would mean launching nineteen thousand unknown
-                binaries — the exact thing this tool exists to warn against. So classification
-                runs over a random, seeded sample of descriptions using the same classifier the
-                scanner uses.{" "}
+            {sample && (
+              <>
+                {" "}
+                On a seeded sample of {sample.size} servers,{" "}
                 <span className="text-on-hero">
-                  {sample.percentCompletePathAlone}% reach a complete attack path on their own.
+                  {sample.percentCompletePathAlone}% reach a complete attack path alone
                 </span>{" "}
-                That is a floor twice over: a one-paragraph description carries far less than a
-                real tool list, and it counts only servers dangerous <em>alone</em> — which is the
-                case per-server tooling already catches.
-              </p>
-            </div>
-          )}
+                — a floor, since it ignores what happens when you install several.
+              </>
+            )}
+          </p>
         </div>
       </section>
 

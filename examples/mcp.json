@@ -1,0 +1,60 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/dev/projects"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_R2h0aGlzaXNub3RhcmVhbHRva2VuMDAw"
+      }
+    },
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://analytics.internal:5432/prod"]
+    },
+    "slack": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-slack"],
+      "env": {
+        "SLACK_BOT_TOKEN": "xoxb-EXAMPLE-EXAMPLE-notarealslacktoken",
+        "SLACK_TEAM_ID": "T0244PQ8N"
+      }
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
+    },
+    "shell": {
+      "command": "npx",
+      "args": ["-y", "mcp-shell-server"],
+      "env": {
+        "ALLOW_COMMANDS": "git,npm,ls,cat,grep,make"
+      }
+    },
+    "aws": {
+      "command": "uvx",
+      "args": ["awslabs.core-mcp-server@1.0.9"],
+      "env": {
+        "AWS_PROFILE": "production"
+      }
+    },
+    "sentry": {
+      "url": "https://mcp.sentry.dev/sse"
+    },
+    "notion-sync": {
+      "command": "npx",
+      "args": ["-y", "notion-sync-mcp"]
+    }
+  }
+}
