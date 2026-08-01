@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import Link from "next/link";
 
 /**
@@ -139,6 +141,73 @@ export function HeroArt() {
         <clipPath id="skyOnly">
           <rect x="0" y="0" width="1440" height={HORIZON} />
         </clipPath>
+
+        {/*
+          Roughened edges.
+          A cubic bezier is perfectly smooth, and perfectly smooth is what makes
+          vector landscape art look like clip art. Displacing the ridge outlines
+          by a low-frequency noise field breaks the mathematical regularity so
+          the crests read as terrain rather than as curves.
+        */}
+        <filter id="rough" x="-5%" y="-15%" width="110%" height="140%">
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.006 0.022"
+            numOctaves="4"
+            seed="11"
+            result="warp"
+          />
+          <feDisplacementMap
+            in="SourceGraphic"
+            in2="warp"
+            scale="26"
+            xChannelSelector="R"
+            yChannelSelector="G"
+          />
+        </filter>
+
+        <filter id="roughSoft" x="-5%" y="-15%" width="110%" height="140%">
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.005 0.017"
+            numOctaves="3"
+            seed="4"
+            result="warp"
+          />
+          <feDisplacementMap
+            in="SourceGraphic"
+            in2="warp"
+            scale="34"
+            xChannelSelector="R"
+            yChannelSelector="G"
+          />
+          {/* Distance haze on the far range. */}
+          <feGaussianBlur stdDeviation="1.4" />
+        </filter>
+
+        {/*
+          Print grain.
+          Rendered inside the SVG rather than only as a CSS overlay so it sits
+          in the same colour space as the artwork and survives scaling. This is
+          the single biggest reason the reference illustrations read as printed
+          — a flat saturated field with no grain reads as a gradient tool.
+        */}
+        <filter id="filmGrain" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.68" numOctaves="4" seed="19" />
+          <feColorMatrix type="saturate" values="0" />
+          <feComponentTransfer>
+            <feFuncA type="linear" slope="0.9" intercept="-0.28" />
+          </feComponentTransfer>
+        </filter>
+
+        {/* Coarser, directional speckle for the foreground. */}
+        <filter id="coarseGrain" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.28 0.42" numOctaves="3" seed="5" />
+          <feColorMatrix type="saturate" values="0" />
+          <feComponentTransfer>
+            <feFuncA type="linear" slope="0.7" intercept="-0.3" />
+          </feComponentTransfer>
+        </filter>
       </defs>
 
       <rect width="1440" height={VB_H} fill="url(#sky)" />
@@ -176,22 +245,101 @@ export function HeroArt() {
       {/* The light source itself, over the rings so it anchors them. */}
       <rect width="1440" height={VB_H} fill="url(#source)" />
 
+      {/* Sky grain, over the gradient but under the terrain. */}
+      <rect
+        width="1440"
+        height={VB_H}
+        filter="url(#filmGrain)"
+        opacity="0.5"
+        style={{ mixBlendMode: "overlay" }}
+      />
+
       {RIDGES.map((ridge, i) => (
-        <path key={i} d={ridge.d} fill={ridge.fill} opacity={ridge.opacity} />
+        <path
+          key={i}
+          d={ridge.d}
+          fill={ridge.fill}
+          opacity={ridge.opacity}
+          // The far range gets the softer, hazier displacement; the nearer two
+          // get the tighter one, so the roughness has depth rather than being
+          // one uniform wobble applied to everything.
+          filter={i === 0 ? "url(#roughSoft)" : "url(#rough)"}
+        />
       ))}
 
-      {/* Rim light traced along the near ridge's crest. */}
-      <path d={NEAR_CREST} fill="none" stroke="url(#rim)" strokeWidth="2.2" />
+      {/* Rim light traced along the near ridge's crest, roughened to match. */}
+      <path
+        d={NEAR_CREST}
+        fill="none"
+        stroke="url(#rim)"
+        strokeWidth="2.4"
+        filter="url(#rough)"
+      />
 
       <rect x="0" y={HORIZON - 1} width="1440" height={VB_H - HORIZON + 1} fill="url(#ground)" />
+
+      {/* Foreground speckle. Coarser than the sky grain because it is nearer. */}
+      <rect
+        x="0"
+        y={HORIZON - 120}
+        width="1440"
+        height={VB_H - HORIZON + 120}
+        filter="url(#coarseGrain)"
+        opacity="0.5"
+        style={{ mixBlendMode: "overlay" }}
+      />
+
+      {/* A second, finer pass over the whole frame ties sky and ground into one
+          surface — without it the terrain reads as pasted onto the sky. */}
+      <rect
+        width="1440"
+        height={VB_H}
+        filter="url(#filmGrain)"
+        opacity="0.32"
+        style={{ mixBlendMode: "soft-light" }}
+      />
     </svg>
   );
 }
 
+/**
+ * Uses a real illustration if one has been dropped into `public/`, otherwise
+ * falls back to the drawn one.
+ *
+ * A generated SVG landscape has a ceiling — displacement and grain get it a
+ * long way from clip art, but it will not match a piece of art somebody painted.
+ * So this looks for `public/hero.{jpg,png,webp,avif}` at render time and prefers
+ * it when present. Drop a file in, reload, done — no code change.
+ *
+ * Deliberately not committed: whatever lands there is likely someone else's
+ * artwork, and a public repo is the wrong place for it. `public/hero.*` is
+ * gitignored for that reason.
+ */
+function findHeroImage(): string | null {
+  // Checked per render rather than once at module scope: at module scope the
+  // answer is cached for the life of the dev server, so dropping a file in and
+  // reloading would appear to do nothing. Five existsSync calls per request is
+  // not worth optimising against that confusion.
+  for (const name of ["hero.jpg", "hero.jpeg", "hero.png", "hero.webp", "hero.avif"]) {
+    if (existsSync(join(process.cwd(), "public", name))) return `/${name}`;
+  }
+  return null;
+}
+
 export function Hero() {
+  const heroImage = findHeroImage();
+
   return (
     <section className="grain relative isolate flex min-h-[94vh] flex-col overflow-hidden bg-hero-deep">
-      <HeroArt />
+      {heroImage ? (
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${heroImage})` }}
+        />
+      ) : (
+        <HeroArt />
+      )}
 
       {/*
         Scrim.

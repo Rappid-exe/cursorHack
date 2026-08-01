@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Hero artwork dropped in locally. Likely third-party illustration, so it
+# stays out of the public repo; the drawn SVG fallback ships instead.
+/public/hero.jpg
+/public/hero.jpeg
+/public/hero.png
+/public/hero.webp
+/public/hero.avif
