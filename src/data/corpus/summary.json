@@ -1,0 +1,52 @@
+{
+  "scannedAt": "2026-08-01T11:00:02.732Z",
+  "census": {
+    "servers": 19513,
+    "delivery": {
+      "local": 9395,
+      "remote": 8750,
+      "both": 1022,
+      "unknown": 346
+    },
+    "withRepository": 15787,
+    "withoutRepository": 3726,
+    "percentWithoutRepository": 19.1,
+    "percentRemote": 44.8,
+    "medianDaysSincePublish": 51,
+    "publishedLast30Days": 6889,
+    "serversWithAdvisories": 40,
+    "serversWithKevCve": 0,
+    "serversDeprecated": 239,
+    "soloMaintainerPackages": 6414,
+    "maintainerDataAvailable": 6837,
+    "percentSoloMaintainer": 93.8
+  },
+  "sample": {
+    "size": 240,
+    "eligiblePopulation": 18932,
+    "basis": "registry server description, treated as a single tool definition",
+    "caveat": "Coarser than the per-config scan, which reads real tool definitions. Under-reports capability, so the solo-path figure is a floor.",
+    "withAnyIngress": 90,
+    "withAnyEgress": 43,
+    "completePathAlone": 15,
+    "percentCompletePathAlone": 6.3,
+    "medianCapabilities": 0,
+    "injectionSpansFound": 0,
+    "capabilityFrequency": {
+      "db.read": 29,
+      "browse.untrusted": 28,
+      "net.outbound": 26,
+      "fs.read": 21,
+      "db.write": 16,
+      "msg.send": 15,
+      "fs.write": 10,
+      "exec.shell": 7,
+      "mail.read": 5,
+      "config.write": 4,
+      "repo.read": 3,
+      "secrets.read": 3,
+      "repo.write": 2,
+      "cloud.admin": 2
+    }
+  }
+}

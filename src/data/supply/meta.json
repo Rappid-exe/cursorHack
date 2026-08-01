@@ -1,0 +1,22 @@
+{
+  "sources": [
+    {
+      "name": "npm registry",
+      "homepage": "https://registry.npmjs.org"
+    },
+    {
+      "name": "PyPI",
+      "homepage": "https://pypi.org"
+    },
+    {
+      "name": "OSV.dev",
+      "homepage": "https://osv.dev"
+    }
+  ],
+  "seededAt": "2026-08-01T10:47:39.086Z",
+  "counts": {
+    "packages": 9281,
+    "packagesWithAdvisories": 42,
+    "advisories": 232
+  }
+}

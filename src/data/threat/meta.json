@@ -1,0 +1,22 @@
+{
+  "sources": [
+    {
+      "name": "CISA Known Exploited Vulnerabilities Catalog",
+      "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+      "homepage": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+      "catalogVersion": "2026.07.29",
+      "dateReleased": "2026-07-29T18:45:59.5809Z"
+    },
+    {
+      "name": "MITRE ATT&CK for Enterprise",
+      "url": "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json",
+      "homepage": "https://attack.mitre.org"
+    }
+  ],
+  "seededAt": "2026-08-01T10:54:00.915Z",
+  "counts": {
+    "kevEntries": 1656,
+    "kevRansomware": 332,
+    "attackTechniques": 15
+  }
+}
