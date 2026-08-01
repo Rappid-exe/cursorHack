@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3001",
+    "scan": "node --env-file=.env.local --import tsx scripts/blast-radius.ts examples/mcp.json --tools examples/tools.json",
+    "scan:mine": "node --env-file=.env.local --import tsx scripts/blast-radius.ts",
+    "verify": "tsx scripts/verify-engine.ts && tsx scripts/verify-fallback.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

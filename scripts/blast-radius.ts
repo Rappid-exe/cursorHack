@@ -86,7 +86,10 @@ function banner(): string {
       if (x >= 0 && x < width) grid[y][x] = COLOUR ? paint(ch) : ch;
     }
   }
-  grid[Math.round(cy)][0] = COLOUR ? c("38;5;209")("◉") : "◉";
+  // U+25CF rather than a fancier ringed variant: this one is in the default
+  // console fonts on Windows, and a tofu box in the first frame of a demo is
+  // not a risk worth taking for a slightly nicer glyph.
+  grid[Math.round(cy)][0] = COLOUR ? c("38;5;209")("●") : "●";
 
   // The wordmark sits in the middle rows, clear of the densest arcs.
   const rows = grid.map((r) => r.join("").replace(/\s+$/, ""));
