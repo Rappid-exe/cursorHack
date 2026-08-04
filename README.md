@@ -261,11 +261,48 @@ machine-readable output.
 npx tsx scripts/blast-radius.ts examples/mcp.json --tools examples/tools.json
 ```
 
-Without `--tools` it still does everything that does not need tool definitions:
-supply-chain posture, credential exposure, registry provenance, pinning. It
-never launches a server to enumerate tools — starting eleven unknown binaries to
-find out whether they are safe is the problem, not the fix. Definitions come
-from a client session.
+Without tool definitions it still does everything that does not need them:
+supply-chain posture, credential exposure, registry provenance, pinning.
+
+### Discovering tools
+
+Working out what a server exposes means running it, and running unknown binaries
+to find out whether they are safe is the problem this product describes. So
+discovery exists, but it is built to answer that objection rather than ignore it:
+
+```bash
+npx tsx scripts/blast-radius.ts examples/mcp.json --discover
+```
+
+- **Opt-in.** Nothing runs unless you ask. The default path is still "supply the
+  definitions".
+- **No real credentials.** The config's `env` block is replaced with
+  placeholders — declared keys are present so servers that refuse to boot
+  without them still start and still advertise their tools, but the values are
+  obvious rubbish that fails at the first validation it meets.
+- **Almost nothing inherited.** An OS allowlist only, so nothing in your
+  environment reaches the child by accident.
+- **Bounded.** One timeout covers launch, handshake and listing, and the process
+  is killed when it expires.
+
+It does **not** isolate the filesystem or the network — the process runs with
+your permissions. That is a real limitation, the CLI says so at the point of
+use, and containerised launching is the next layer.
+
+Failures explain themselves, because the protocol only ever reports
+`Connection closed` and the reason is on the server's stderr:
+
+```
+✓ github           26 tools  4.3s
+✓ puppeteer         7 tools  5.0s
+✗ filesystem       failed: None of the specified directories are accessible
+✗ notion-sync      failed: npm error 404
+–  sentry          Remote server — discovery over HTTP is not supported yet
+```
+
+The first run of an `npx -y` server downloads the package before it starts,
+which dominates everything else; later runs hit the npx cache and finish in
+seconds.
 
 ## Running it
 

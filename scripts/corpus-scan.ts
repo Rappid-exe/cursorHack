@@ -95,7 +95,6 @@ async function main() {
   // ---- Census -------------------------------------------------------------
   const delivery = { local: 0, remote: 0, both: 0, unknown: 0 };
   let withRepository = 0;
-  let unpinnable = 0; // local servers whose registry entry names no version
   const ageDays: number[] = [];
   const advisoryServers = new Set<string>();
   const kevServers = new Set<string>();
@@ -134,9 +133,6 @@ async function main() {
       }
     }
 
-    // A registry entry that pins no version is one a client will resolve to
-    // "latest" at launch.
-    if (s.delivery !== "remote" && s.packages.every((p) => !p.identifier)) unpinnable += 1;
   }
 
   const census = {

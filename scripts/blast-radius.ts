@@ -9,27 +9,31 @@
  *
  *   npx tsx scripts/blast-radius.ts                          # auto-detect configs
  *   npx tsx scripts/blast-radius.ts path/to/mcp.json         # a specific one
- *   npx tsx scripts/blast-radius.ts --tools tools.json ...   # with tool definitions
+ *   npx tsx scripts/blast-radius.ts --tools tools.json ...   # supplied definitions
+ *   npx tsx scripts/blast-radius.ts --discover ...           # ask the servers
  *   npx tsx scripts/blast-radius.ts --json                   # machine-readable
  *
  * Exits 1 when a critical path is found, so it fails a build.
  *
  * Without tool definitions it still does everything that does not require them:
- * supply-chain posture, credential exposure, registry provenance, pinning. Tool
- * definitions come from a client session (`--tools`), because enumerating them
- * for real would mean launching every server in the config to ask what it can
- * do — which is the problem this tool exists to warn about, not a way to solve
- * it.
+ * supply-chain posture, credential exposure, registry provenance, pinning.
+ *
+ * Definitions come from one of two places. `--tools` takes them from a client
+ * session, which involves running nothing. `--discover` launches each server and
+ * asks it — accurate, but it executes the code under inspection, so it is opt-in,
+ * it says so before doing it, and it strips every credential first. See
+ * src/lib/discover.
  */
 
 import { readFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { parseConfig, ConfigError, invocationOf } from "../src/lib/engine/config";
+import { parseConfig, ConfigError } from "../src/lib/engine/config";
 import { scan } from "../src/lib/engine/scan";
 import { remediate } from "../src/lib/engine/remediate";
-import { assessServer } from "../src/lib/engine/supply";
 import { classifyTools } from "../src/lib/classify";
+import { discoverAll, toolsFrom } from "../src/lib/discover";
+import type { DiscoveryResult } from "../src/lib/discover";
 import { technique } from "../src/lib/engine/attack";
 import type { ServerSpec, ToolSpec, Severity } from "../src/lib/engine/types";
 
@@ -120,6 +124,50 @@ function defaultConfigPaths(): string[] {
   ];
 }
 
+/**
+ * Splits argv into boolean flags, `--key value` pairs, and positional paths.
+ *
+ * Written out rather than done with index arithmetic against `indexOf`, which
+ * is where the previous version went wrong: with `--tools` absent, `indexOf`
+ * returns -1, `-1 + 1` is 0, and the first positional argument was silently
+ * dropped — so passing a config path fell through to auto-detection and scanned
+ * a different machine's file than the one you named.
+ *
+ * `VALUE_FLAGS` is the whole reason this needs to know anything: without it
+ * there is no way to tell `--tools file.json` from `--discover file.json`.
+ */
+const VALUE_FLAGS = new Set(["tools"]);
+
+function parseArgs(argv: string[]): {
+  flags: Set<string>;
+  values: Map<string, string>;
+  positional: string[];
+} {
+  const flags = new Set<string>();
+  const values = new Map<string, string>();
+  const positional: string[] = [];
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (!arg.startsWith("--")) {
+      positional.push(arg);
+      continue;
+    }
+    const name = arg.slice(2);
+    if (VALUE_FLAGS.has(name)) {
+      const next = argv[i + 1];
+      if (next !== undefined && !next.startsWith("--")) {
+        values.set(name, next);
+        i += 1;
+      }
+      continue;
+    }
+    flags.add(name);
+  }
+
+  return { flags, values, positional };
+}
+
 function loadTools(path: string, servers: ServerSpec[]): ToolSpec[] {
   const raw = JSON.parse(readFileSync(path, "utf8"));
   const list: unknown[] = Array.isArray(raw) ? raw : (raw.tools ?? []);
@@ -139,13 +187,10 @@ function loadTools(path: string, servers: ServerSpec[]): ToolSpec[] {
 }
 
 async function main() {
-  const argv = process.argv.slice(2);
-  const asJson = argv.includes("--json");
-  const toolsFlag = argv.indexOf("--tools");
-  const toolsPath = toolsFlag >= 0 ? argv[toolsFlag + 1] : null;
-  const positional = argv.filter(
-    (a, i) => !a.startsWith("--") && i !== toolsFlag + 1,
-  );
+  const { flags, values, positional } = parseArgs(process.argv.slice(2));
+  const asJson = flags.has("json");
+  const discover = flags.has("discover");
+  const toolsPath = values.get("tools") ?? null;
 
   const targets = positional.length > 0 ? positional : defaultConfigPaths().filter(existsSync);
 
@@ -175,7 +220,33 @@ async function main() {
       continue;
     }
 
-    const tools = toolsPath ? loadTools(toolsPath, servers) : [];
+    let tools: ToolSpec[] = toolsPath ? loadTools(toolsPath, servers) : [];
+    let discovery: DiscoveryResult[] | null = null;
+
+    if (discover) {
+      // Discovery runs the servers. Say so before doing it, every time — the
+      // whole argument of this tool is that starting unknown binaries is the
+      // risk, and burying that in a man page would be dishonest.
+      if (!asJson) {
+        console.log();
+        console.log(bold("  Discovering tools") + dim("  — launches each server locally"));
+        console.log(
+          dim("  Credentials are replaced with placeholders and nothing is inherited."),
+        );
+        console.log();
+      }
+      discovery = await discoverAll(servers, {
+        onResult: (r) => {
+          if (asJson) return;
+          const mark = r.error ? (r.skipped ? grey("–") : red("✗")) : blue("✓");
+          const detail = r.error
+            ? dim(r.skipped ? r.error : `failed: ${r.error}`)
+            : `${String(r.tools.length).padStart(2)} tools  ${dim(`${(r.durationMs / 1000).toFixed(1)}s`)}`;
+          console.log(`    ${mark} ${r.serverKey.padEnd(16)} ${detail}`);
+        },
+      });
+      tools = toolsFrom(discovery);
+    }
     // One classification call, reused. Calling it per field would double both
     // the latency and the bill for the same answer.
     const classification = tools.length > 0 ? await classifyTools(tools) : null;
