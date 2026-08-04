@@ -7,7 +7,7 @@
     "scan": "node --env-file=.env.local --import tsx scripts/blast-radius.ts examples/mcp.json --tools examples/tools.json",
     "scan:mine": "node --env-file=.env.local --import tsx scripts/blast-radius.ts",
     "scan:discover": "node --env-file=.env.local --import tsx scripts/blast-radius.ts examples/mcp.json --discover",
-    "verify": "tsx scripts/verify-engine.ts && tsx scripts/verify-fallback.ts",
+    "verify": "tsx scripts/verify-engine.ts && tsx scripts/verify-drift.ts && tsx scripts/verify-fallback.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint src scripts"

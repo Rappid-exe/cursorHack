@@ -11,6 +11,7 @@
  *   npx tsx scripts/blast-radius.ts path/to/mcp.json         # a specific one
  *   npx tsx scripts/blast-radius.ts --tools tools.json ...   # supplied definitions
  *   npx tsx scripts/blast-radius.ts --discover ...           # ask the servers
+ *   npx tsx scripts/blast-radius.ts --baseline b.json ...    # record, then detect drift
  *   npx tsx scripts/blast-radius.ts --json                   # machine-readable
  *
  * Exits 1 when a critical path is found, so it fails a build.
@@ -25,7 +26,7 @@
  * src/lib/discover.
  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { parseConfig, ConfigError } from "../src/lib/engine/config";
@@ -34,8 +35,21 @@ import { remediate } from "../src/lib/engine/remediate";
 import { classifyTools } from "../src/lib/classify";
 import { discoverAll, toolsFrom } from "../src/lib/discover";
 import type { DiscoveryResult } from "../src/lib/discover";
+import {
+  captureSnapshot,
+  diffSnapshots,
+  reuseClassification,
+  shouldFail,
+  SNAPSHOT_VERSION,
+} from "../src/lib/drift";
+import type { DriftFinding, Snapshot } from "../src/lib/drift";
 import { technique } from "../src/lib/engine/attack";
-import type { ServerSpec, ToolSpec, Severity } from "../src/lib/engine/types";
+import type {
+  ClassifiedTool,
+  ServerSpec,
+  Severity,
+  ToolSpec,
+} from "../src/lib/engine/types";
 
 // --- terminal helpers -------------------------------------------------------
 // Colour is suppressed when not a TTY or when NO_COLOR is set, so piping into a
@@ -136,7 +150,7 @@ function defaultConfigPaths(): string[] {
  * `VALUE_FLAGS` is the whole reason this needs to know anything: without it
  * there is no way to tell `--tools file.json` from `--discover file.json`.
  */
-const VALUE_FLAGS = new Set(["tools"]);
+const VALUE_FLAGS = new Set(["tools", "baseline"]);
 
 function parseArgs(argv: string[]): {
   flags: Set<string>;
@@ -191,6 +205,8 @@ async function main() {
   const asJson = flags.has("json");
   const discover = flags.has("discover");
   const toolsPath = values.get("tools") ?? null;
+  const baselinePath = values.get("baseline") ?? null;
+  const updateBaseline = flags.has("update-baseline");
 
   const targets = positional.length > 0 ? positional : defaultConfigPaths().filter(existsSync);
 
@@ -247,26 +263,109 @@ async function main() {
       });
       tools = toolsFrom(discovery);
     }
-    // One classification call, reused. Calling it per field would double both
-    // the latency and the bill for the same answer.
-    const classification = tools.length > 0 ? await classifyTools(tools) : null;
-    const result = scan(servers, classification?.tools ?? [], classification?.injections ?? []);
-    if (classification && classification.tools.length > 0) {
-      result.remediation = remediate(servers, classification.tools, result.paths);
+    // When a baseline exists, anything whose description is byte-identical to
+    // it keeps the baseline's classification instead of being asked again. Two
+    // reasons, and the first is the important one: re-asking a model the same
+    // question can return a different answer, which would surface as drift that
+    // never happened. It is also free.
+    const priorSnapshot =
+      baselinePath && existsSync(baselinePath) && !updateBaseline
+        ? readSnapshot(baselinePath)
+        : null;
+
+    const { reused, needsClassification } = priorSnapshot
+      ? reuseClassification(priorSnapshot, tools)
+      : { reused: [] as ClassifiedTool[], needsClassification: tools };
+
+    const fresh = needsClassification.length > 0 ? await classifyTools(needsClassification) : null;
+    const classifiedTools = [...reused, ...(fresh?.tools ?? [])];
+
+    const result = scan(servers, classifiedTools, fresh?.injections ?? []);
+    if (classifiedTools.length > 0) {
+      result.remediation = remediate(servers, classifiedTools, result.paths);
+    }
+
+    if (!asJson && reused.length > 0) {
+      console.log();
+      console.log(
+        dim(
+          `  ${reused.length} tools unchanged since the baseline — classification carried forward, ${needsClassification.length} re-read.`,
+        ),
+      );
+    }
+
+    // --- Drift ------------------------------------------------------------
+    let drift: DriftFinding[] | null = null;
+    let baselineCreated = false;
+
+    if (baselinePath) {
+      const versions = new Map(
+        (discovery ?? []).map((d) => [d.serverKey, d.serverInfo?.version ?? null]),
+      );
+      const current = captureSnapshot(result.servers, classifiedTools, result.paths, versions);
+
+      if (priorSnapshot) {
+        drift = diffSnapshots(priorSnapshot, current);
+      } else {
+        writeFileSync(baselinePath, `${JSON.stringify(current, null, 2)}\n`, "utf8");
+        baselineCreated = true;
+      }
     }
 
     if (asJson) {
-      console.log(JSON.stringify({ config: target, result }, null, 2));
+      console.log(JSON.stringify({ config: target, result, drift }, null, 2));
     } else {
       report(target, servers, result);
+      if (baselineCreated) {
+        console.log(`  ${blue("✓")} baseline written to ${baselinePath}`);
+        console.log();
+      } else if (drift) {
+        reportDrift(drift, baselinePath!);
+      }
     }
 
     const critical = result.paths.filter((p) => p.severity === "critical").length;
     const criticalSupply = result.supply.filter((s) => s.severity === "critical").length;
     if (critical + criticalSupply > 0) worstExit = Math.max(worstExit, 1);
+    if (drift && shouldFail(drift)) worstExit = Math.max(worstExit, 1);
   }
 
   process.exit(worstExit);
+}
+
+/** Reads a baseline, refusing one written by an incompatible version. */
+function readSnapshot(path: string): Snapshot {
+  const snap = JSON.parse(readFileSync(path, "utf8")) as Snapshot;
+  if (snap.version !== SNAPSHOT_VERSION) {
+    throw new Error(
+      `Baseline at ${path} is version ${snap.version}, this build writes ${SNAPSHOT_VERSION}. Re-create it with --update-baseline.`,
+    );
+  }
+  return snap;
+}
+
+function reportDrift(findings: DriftFinding[], baselinePath: string) {
+  const line = (s = "") => console.log(s);
+
+  line();
+  if (findings.length === 0) {
+    line(`  ${blue("✓")} no drift since ${dim(baselinePath)}`);
+    line();
+    return;
+  }
+
+  line(bold(`  ${findings.length} change${findings.length === 1 ? "" : "s"} since last scan`));
+  for (const f of findings) {
+    const where = f.toolName ? `${f.serverKey}/${f.toolName}` : f.serverKey;
+    line(`    ${SEV_COLOUR[f.severity]("●")} ${dim(where)}  ${f.summary}`);
+    // Before and after are printed for the changes where reading the text is
+    // the point — a rewritten description is not something to summarise.
+    if (f.kind === "description-changed") {
+      line(`      ${grey("was:")} ${dim(f.before ?? "")}`);
+      line(`      ${grey("now:")} ${f.after ?? ""}`);
+    }
+  }
+  line();
 }
 
 function report(
