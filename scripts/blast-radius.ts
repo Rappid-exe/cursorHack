@@ -11,6 +11,7 @@
  *   npx tsx scripts/blast-radius.ts path/to/mcp.json         # a specific one
  *   npx tsx scripts/blast-radius.ts --tools tools.json ...   # supplied definitions
  *   npx tsx scripts/blast-radius.ts --discover ...           # ask the servers
+ *   npx tsx scripts/blast-radius.ts --inspect ...            # read the package source
  *   npx tsx scripts/blast-radius.ts --baseline b.json ...    # record, then detect drift
  *   npx tsx scripts/blast-radius.ts --json                   # machine-readable
  *
@@ -29,7 +30,7 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { parseConfig, ConfigError } from "../src/lib/engine/config";
+import { parseConfig, ConfigError, packageOf } from "../src/lib/engine/config";
 import { scan } from "../src/lib/engine/scan";
 import { remediate } from "../src/lib/engine/remediate";
 import { classifyTools } from "../src/lib/classify";
@@ -43,6 +44,8 @@ import {
   SNAPSHOT_VERSION,
 } from "../src/lib/drift";
 import type { DriftFinding, Snapshot } from "../src/lib/drift";
+import { observePackage, undeclared } from "../src/lib/observe";
+import type { InstallScript, UndeclaredFinding } from "../src/lib/observe";
 import { technique } from "../src/lib/engine/attack";
 import type {
   ClassifiedTool,
@@ -204,6 +207,7 @@ async function main() {
   const { flags, values, positional } = parseArgs(process.argv.slice(2));
   const asJson = flags.has("json");
   const discover = flags.has("discover");
+  const inspect = flags.has("inspect");
   const toolsPath = values.get("tools") ?? null;
   const baselinePath = values.get("baseline") ?? null;
   const updateBaseline = flags.has("update-baseline");
@@ -294,6 +298,60 @@ async function main() {
       );
     }
 
+    // --- Declared vs observed ----------------------------------------------
+    // Everything above reads what servers say about themselves. This reads what
+    // their code can do, and reports only the gap.
+    const undeclaredFindings: UndeclaredFinding[] = [];
+    const installScripts: { serverKey: string; scripts: InstallScript[] }[] = [];
+
+    if (inspect) {
+      if (!asJson) {
+        console.log();
+        console.log(bold("  Inspecting package source") + dim("  — fetched with --ignore-scripts"));
+        console.log();
+      }
+      for (const server of servers) {
+        const pkg = packageOf(server);
+        if (!pkg || pkg.ecosystem !== "npm") {
+          if (!asJson) {
+            console.log(
+              `    ${grey("–")} ${server.key.padEnd(16)} ${dim(pkg ? `${pkg.ecosystem} not supported yet` : "not a registry package")}`,
+            );
+          }
+          continue;
+        }
+
+        const observation = observePackage(pkg.name);
+        if (observation.error) {
+          if (!asJson) {
+            console.log(`    ${red("✗")} ${server.key.padEnd(16)} ${dim(observation.error)}`);
+          }
+          continue;
+        }
+
+        const declared = new Set(
+          classifiedTools.filter((t) => t.serverKey === server.key).flatMap((t) => t.capabilities),
+        );
+        const gaps = undeclared(server.key, observation, declared, {
+          declaredEnv: Object.keys(server.env ?? {}),
+        });
+        undeclaredFindings.push(...gaps);
+        if (observation.installScripts.length > 0) {
+          installScripts.push({ serverKey: server.key, scripts: observation.installScripts });
+        }
+
+        if (!asJson) {
+          const summary =
+            gaps.length > 0
+              ? `${gaps.length} undeclared: ${gaps.map((g) => g.capability).join(", ")}`
+              : dim("nothing undeclared");
+          console.log(
+            `    ${gaps.length > 0 ? orange("!") : blue("✓")} ${server.key.padEnd(16)} ${summary} ${dim(`(${observation.filesScanned} files)`)}`,
+          );
+        }
+      }
+    }
+
     // --- Drift ------------------------------------------------------------
     let drift: DriftFinding[] | null = null;
     let baselineCreated = false;
@@ -313,9 +371,16 @@ async function main() {
     }
 
     if (asJson) {
-      console.log(JSON.stringify({ config: target, result, drift }, null, 2));
+      console.log(
+        JSON.stringify(
+          { config: target, result, drift, undeclared: undeclaredFindings, installScripts },
+          null,
+          2,
+        ),
+      );
     } else {
       report(target, servers, result);
+      reportUndeclared(undeclaredFindings, installScripts);
       if (baselineCreated) {
         console.log(`  ${blue("✓")} baseline written to ${baselinePath}`);
         console.log();
@@ -328,6 +393,7 @@ async function main() {
     const criticalSupply = result.supply.filter((s) => s.severity === "critical").length;
     if (critical + criticalSupply > 0) worstExit = Math.max(worstExit, 1);
     if (drift && shouldFail(drift)) worstExit = Math.max(worstExit, 1);
+    if (undeclaredFindings.some((f) => f.severity === "critical")) worstExit = Math.max(worstExit, 1);
   }
 
   process.exit(worstExit);
@@ -342,6 +408,46 @@ function readSnapshot(path: string): Snapshot {
     );
   }
   return snap;
+}
+
+/**
+ * The gap between what a server says and what its code can do.
+ *
+ * Evidence is printed rather than summarised. A text search over source has
+ * false positives, and the only honest way to ship one is to show the line so a
+ * reader can dismiss it in a second.
+ */
+function reportUndeclared(
+  findings: UndeclaredFinding[],
+  installScripts: { serverKey: string; scripts: InstallScript[] }[],
+) {
+  const line = (s = "") => console.log(s);
+
+  if (findings.length > 0) {
+    line();
+    line(bold(`  ${findings.length} undeclared capabilit${findings.length === 1 ? "y" : "ies"}`));
+    line(dim("  The code can do this. No tool description mentions it."));
+    line();
+    for (const f of findings) {
+      line(
+        `    ${SEV_COLOUR[f.severity]("●")} ${f.serverKey.padEnd(16)} ${bold(f.capability)} ${dim(`in ${f.packageName}`)}`,
+      );
+      for (const e of f.evidence) {
+        line(`        ${grey(`${e.file}:${e.line}`)}  ${dim(e.excerpt)}`);
+      }
+    }
+  }
+
+  if (installScripts.length > 0) {
+    line();
+    line(bold(`  ${installScripts.length} server${installScripts.length === 1 ? "" : "s"} run install hooks`));
+    line(dim("  These execute on install, before the server is ever started."));
+    for (const { serverKey, scripts } of installScripts) {
+      for (const s of scripts) {
+        line(`    ${orange("●")} ${serverKey.padEnd(16)} ${s.name}: ${dim(s.command)}`);
+      }
+    }
+  }
 }
 
 function reportDrift(findings: DriftFinding[], baselinePath: string) {

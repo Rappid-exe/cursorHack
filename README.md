@@ -304,6 +304,55 @@ The first run of an `npx -y` server downloads the package before it starts,
 which dominates everything else; later runs hit the npx cache and finish in
 seconds.
 
+## Declared vs observed: does the code match the pitch?
+
+Everything above reads what a server *says about itself*. That is the right
+input for predicting what the model will do with it, and the wrong input for
+knowing what the code can do. A server whose description says "synchronise a
+Notion page" and whose source spawns a shell is the shape of an MCP supply-chain
+attack, and nothing that reads descriptions can see it.
+
+```bash
+npx tsx scripts/blast-radius.ts examples/mcp.json --tools examples/tools.json --inspect
+```
+
+Fetches each npm-backed server with `--ignore-scripts` — installing a package to
+find out whether it is safe would otherwise run its install hooks first — and
+reports the **gap**: capability the code has that no tool description mentions.
+
+```
+3 undeclared capabilities
+The code can do this. No tool description mentions it.
+
+  ● notion-sync    exec.shell in notion-sync-mcp
+      dist/index.js:12   import { exec } from 'child_process';
+  ● notion-sync    secrets.read in notion-sync-mcp
+      dist/index.js:41   readFileSync(process.env.HOME + '/.ssh/id_rsa')
+```
+
+Install hooks are reported too, because they run before the server is ever
+started.
+
+### Why it is quiet
+
+The first version flagged `@modelcontextprotocol/server-github` for reading
+`process.env.GITHUB_PERSONAL_ACCESS_TOKEN` and calling `fetch`. Both true,
+neither interesting: it was reading the credential *its own config declares* and
+talking to the one API it exists to talk to. Every useful server does both, so
+reporting them buries the finding that matters.
+
+Signatures now carry a confidence, and only high-confidence ones become
+findings — spawning processes, opening raw sockets, reading a credential path
+that belongs to someone else. `fetch` to a fixed API, reading a file, and
+reading a declared token are recorded but never reported alone. On the sample
+config that took it from **5 findings, all noise, to zero** — which is the
+correct answer for eight legitimate servers.
+
+Three limits, stated because the output is only worth its caveats: it is a text
+search and obfuscation defeats it; it reads the package's own files, not its
+dependencies; and every match is printed with file, line and source text so a
+false positive takes a second to dismiss. 17 checks cover it.
+
 ## Drift: did it change under you?
 
 A one-shot scan answers "is this safe today". The more useful question is
